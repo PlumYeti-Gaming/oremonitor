@@ -1,74 +1,54 @@
+TimerStarted = 0
+
+if( TimerStarted == 0 )
+then
+
+Material = "Coal"
+Volume_Available_KL = "368" --export: (Default: 192000) Available Volume (KL) in Hub or Container
+Materials = { "Coal", "Hematite", "Bauxite", "Quartz" }
+MaterialVols = { 0,0,0,0 }
+MaterialSlot = 1
+
+--system.print("container " ..slot2.getMaxVolume())
+--Volume_Available_KL = slot2.getMaxVolume()
+end
+
 unit.hide()
 
-Material = "Bauxite" --export: (Default: Coal) Ore Name
-Volume_Available_KL = "1920" --export: (Default: 1920) Available Volume (KL) in Hub or Container
-
 template = [[
-<style type="text/css">
-  body {
-    background-color: black;
-    color: white;
-  }
 
-  table {
-    width: 60%;
-    margin-left: 20%;
-    margin-top: 15vh;
-  }
+local layer = createLayer() -- create a new layer
+local rx, ry = getResolution() -- get the resolution of the screen
+local fontPYG = loadFont("RobotoMono-Bold", 48) -- load the "Play" font at size 20pain
+local font = loadFont("RobotoMono", 56) -- load the "Play" font at size 20pain
+local fontBold = loadFont("RobotoMono-Bold", 64) -- load the "Play" font at size 20pain
+setDefaultTextAlign (layer, AlignH_Center, AlignV_Middle)
+addText(layer, fontPYG, "PYG Ore Monitor", rx/2, ry/16) -- add a text string using font
 
-  img {
-    width: 80%;
-  }
-  
-  .left {
-    width: 50%;
-    text-align: center;
-  }
+--Progress Bar Back
+setNextFillColor(layer, 0.3, 0.3, 0.3, 1)
+addBox(layer, 16, (ry/4) * 3, rx - 32, (ry/4) - 16) -- add a box in the center of the screen
+setNextFillColor(layer, 0, 0, 0, 1)
+addBox(layer, 16 + 8, ((ry/4) * 3) + 8, rx - 48, (ry/4) - 32) -- add a box in the center of the screen
 
-  .right {
-    text-align: center;
-  }
-  
-  .material {
-    font-size: 5vw;
-  }
+-- Front 1
+-- layer x y width height
+setNextFillColor(layer, 0.5, 0.5, 0.5, 1)
+addBox(layer, 16 + 8, ((ry/4) * 3) + 8, ((rx - 48) / 100) * ${percentAll}, (ry/4) - 32) -- add a box in the center of the screen
 
-  .volume {
-    font-size: 8vw;
-  }
+-- Front 2
+-- layer x y width height
+setNextFillColor(layer, ${color}, 1)
+addBox(layer, 16 + 8, ((ry/4) * 3) + 8, ((rx - 48) / 100) * ${percent}, (ry/4) - 32) -- add a box in the center of the screen
 
-  .units {
-    color: #666666;
-  }
+layer = createLayer()
+setDefaultTextAlign (layer, AlignH_Center, AlignV_Top)
 
-  .bar {
-    width: 80%;
-    margin-left: 10%;
-    margin-top: 5vh;
-    border: 1vh solid #666666;
-    height: 20vh;
-  }
+local image = loadImage("https://assets.prod.novaquark.com/${pureName}.png")
+addImage(layer, image, rx/6, ry/5, 256,256)
 
-  .progress {
-    width: ${percent}%;
-    height: 100%;
-    background-color: #${color};
-  }
-</style>
-<div style="width: 100%; height: 100%; background-color: black">
-  <table>
-    <tr>
-      <td class="left">
-        <img src="http://assets.prod.novaquark.com/${pureName}.png" class="image" />
-      </td>
-      <td class="right">
-        <div class="material">${Material}</div>
-        <div class="volume">${volume} <span class="units">kL</span></div>
-      </td>
-    </tr>
-  </table>
-  <div class="bar"><div class="progress"></div></div>
-</div>
+addText(layer, fontBold, "${Material}", (rx/3) * 2, ((ry/5) * 2) - 48 )
+addText(layer, font, "${volume} kL", (rx/3) * 2, ((ry/5) * 2) + 32)
 ]]
 
 local ores = {
@@ -126,8 +106,10 @@ function configure()
       config.screen = slot1
       config.container = slot2
       maxVolume = math.floor(slot2.getMaxVolume())
-      currentVolume = math.floor(slot2.getItemsVolume())
+      currentVolume = math.floor(MaterialVols[MaterialSlot])
+      currentVolumeAll = math.floor(slot2.getItemsVolume())
       
+      slot2.acquireStorage()
       return true
   end
 
@@ -135,7 +117,10 @@ function configure()
       config.screen = slot2
       config.container = slot1
       maxVolume = math.floor(slot1.getMaxVolume())
-      currentVolume = math.floor(slot1.getItemsVolume())
+      currentVolume = math.floor(MaterialVols[MaterialSlot])
+      currentVolumeAll = math.floor(slot1.getItemsVolume())
+      
+      slot1.acquireStorage()
       return true
   end
 
@@ -155,27 +140,32 @@ function render()
       system.print("Invalid ore name")
       return
   end
-  local volume = math.floor(currentVolume / 1000)
+  local volume = currentVolume / 1000
+  local volumeAll = currentVolumeAll / 1000
   local percent = volume / Volume_Available_KL * 100
+  local percentAll = volumeAll / Volume_Available_KL * 100
+  volume = tonumber(string.format("%.3f", volume))
   
-  system.print("Volume: " ..volume.. " (volume)")
-  system.print("Percent: " ..percent.. " (Volume / Volume Available KL * 100)")
+  --system.print("Volume: " ..volume.. " (volume)")
+  --system.print("Percent: " ..percent.. " (Volume / Volume Available KL * 100)")
   local color
   if percent > 75 then
-      color = "00aa00"
+      color = "0, 0.666, 0"
   elseif percent > 50 then
-      color = "aaaa00"
+      color = "0.666, 0.666, 0"
   else
-      color = "aa0000"
+      color = "0.666, 0, 0"
   end
   local params = {
       pureName=pureName,
       Material=Material,
       volume=volume,
+      volumeAll=volumeAll,
       percent=percent,
+      percentAll=percentAll,
       color=color
   }
-  config.screen.setHTML(interp(template, params))
+  config.screen.setRenderScript(interp(template, params))
 end
 
 function interp(s, tab)
@@ -183,5 +173,9 @@ function interp(s, tab)
 end
 
 if configure() then
-  render()
+  --render()
+    if( TimerStarted == 1 )
+    then
+        render()
+    end
 end
